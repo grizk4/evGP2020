@@ -20,4 +20,4 @@ The packages within catkin_ws/src are as follows:
   
 4) sys - This is the system package. The command: "roslaunch sys sys.launch" launches the master ROS node along with the launch files from the cepton_ros, inertial_sense_ros, turtlesim, and turtlesim_cleaner packages, effectively initiating all the required nodes for the interactive simulation 
 
-NOTE: To effectively utilize any of these packages in ROS, user should download ROS kinetic with roscpp & rospy as dependencies
+NOTE: To effectively utilize any of these packages in ROS, user should download ROS kinetic with roscpp & rospy as dependencies. 
