@@ -1,0 +1,10 @@
+<!-- Launches SDK driver and rviz for Cepton Lidar and INS driver -->
+<launch>
+  <include file="$(find cepton_ros)/launch/cepton.launch" />
+  <!--<include file="$(find inertial_sense)/launch/ins.launch" />-->
+  <node pkg="turtlesim" type="turtlesim_node" name="turtlesim" />
+  <node pkg="turtlesim_cleaner" type="move.py" name="turtlesim_cleaner" />-->
+  <!--<node pkg="turtlesim_cleaner" type="listener.py" name="turtlesim_cleaner" />-->
+  <!--<node pkg="turtlesim_cleaner" type="move.py" name="turtlesim_cleaner" />-->
+
+</launch>
