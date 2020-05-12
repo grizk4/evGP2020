@@ -8,7 +8,7 @@ publicly available ROS package that activates Lidar, INS, and a turtlesim
 
 ReadMe files are available for each individual package within each package of the catkin_ws.
 
-Teh packages within catkin_ws/src are as follows:
+The packages within catkin_ws/src are as follows:
 
 1) cepton_ros - this package interfaces with the Cepton Lidar, and launches an rviz sim that displays the lidar's 3D point cloud
 2) inertial_sense_ros - this package interfaces with the Inertial Sense INS unit reads out IMU and INS data over topics
