@@ -1,0 +1,38 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/pi/remote_control_client/client.cpp
+string
+-
+iostream
+-
+chrono
+-
+thread
+-
+cstdio
+-
+cstdlib
+-
+unistd.h
+-
+cstring
+-
+sys/types.h
+-
+sys/socket.h
+-
+netinet/in.h
+-
+netdb.h
+-
+wiringPi.h
+-
+softPwm.h
+-
+
