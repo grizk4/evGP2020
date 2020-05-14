@@ -1,0 +1,101 @@
+#define Phoenix_No_WPI // remove WPI dependencies
+#include <string>
+#include <iostream>
+#include <chrono>
+#include <thread>
+#include <SDL2/SDL.h>
+#include <wiringPi.h>
+#include <softPwm.h>
+#include <unistd.h>
+
+/** simple wrapper for code cleanup */
+void sleepApp(int ms)
+{
+	std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+}
+ 
+int main() {
+  
+  wiringPiSetup();
+
+  pinMode(29, OUTPUT); // Steering
+  softPwmCreate(29, 15, 100);
+
+  pinMode(28, OUTPUT); // Throttle
+  softPwmCreate(28, 0, 100);
+  
+	while (true) {
+		/* we are looking for gamepad (first time or after disconnect),
+			neutral drive until gamepad (re)connected. */
+	        
+		// wait for controller
+		printf("Waiting for controller...\n");
+		while (true) {
+			/* SDL seems somewhat fragile, shut it down and bring it up */
+			SDL_Quit();
+			SDL_Init(SDL_INIT_GAMECONTROLLER);
+
+			/* poll for gamepad */
+			int res = SDL_NumJoysticks();
+			if (res > 0) { break; }
+			if (res < 0) { printf("Err = %i\n", res); }
+
+			/* yield for a bit */
+			sleepApp(20);
+		}
+		printf("Waiting for controller...Found one\n");
+
+		// Open the joystick for reading and store its handle in the joy variable
+		SDL_Joystick *joy = SDL_JoystickOpen(0);
+		if (joy == NULL) {
+			/* back to top of while loop */
+			continue;
+		}
+
+		// Get information about the joystick
+		const char *name = SDL_JoystickName(joy);
+		const int num_axes = SDL_JoystickNumAxes(joy);
+		const int num_buttons = SDL_JoystickNumButtons(joy);
+		const int num_hats = SDL_JoystickNumHats(joy);
+		printf("Now reading from joystick '%s' with:\n"
+			"%d axes\n"
+			"%d buttons\n"
+			"%d hats\n\n",
+			name,
+			num_axes,
+			num_buttons,
+			num_hats);
+	
+
+		// Keep reading the state of the joystick in a loop
+		while (true) {
+			/* poll for disconnects or bad things */
+			SDL_Event event;
+			if (SDL_PollEvent(&event)) {
+				if (event.type == SDL_QUIT) { break; }
+				if (event.jdevice.type == SDL_JOYDEVICEREMOVED) { break; }
+			}
+
+			/* grab some stick values */
+			double steer = ((double)SDL_JoystickGetAxis(joy, 0)) / -32767.0;
+			double throttle = ((double)SDL_JoystickGetAxis(joy, 5)) / 32767.0;
+
+			double steering_duty = 15 + steer*5;
+			double throttle_duty = (throttle + 1)*50;
+		        printf("steering: %f %, throttle: %f %\n", steer*100, throttle_duty);
+
+		        softPwmWrite(29, steering_duty);
+			softPwmWrite(28, throttle_duty);
+			
+			sleepApp(20);
+		}
+
+		/* we've left the loop, likely due to gamepad disconnect */
+		//drive(0, 0);
+		SDL_JoystickClose(joy);
+		printf("controller disconnected\n");
+	}
+
+	SDL_Quit();
+	return 0;
+}

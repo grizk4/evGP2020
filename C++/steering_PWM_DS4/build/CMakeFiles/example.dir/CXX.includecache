@@ -1,0 +1,26 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/pi/steering_PWM_DS4/example.cpp
+string
+-
+iostream
+-
+chrono
+-
+thread
+-
+SDL2/SDL.h
+-
+wiringPi.h
+-
+softPwm.h
+-
+unistd.h
+-
+
