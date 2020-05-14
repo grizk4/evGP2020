@@ -1,0 +1,14 @@
+Determining if the include file pthread.h exists passed with the following output:
+Change Dir: /home/pi/final_control/bin/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_c7416/fast"
+/usr/bin/make -f CMakeFiles/cmTC_c7416.dir/build.make CMakeFiles/cmTC_c7416.dir/build
+make[1]: Entering directory '/home/pi/final_control/bin/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_c7416.dir/CheckIncludeFile.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_c7416.dir/CheckIncludeFile.c.o   -c /home/pi/final_control/bin/CMakeFiles/CMakeTmp/CheckIncludeFile.c
+Linking C executable cmTC_c7416
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_c7416.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_c7416.dir/CheckIncludeFile.c.o  -o cmTC_c7416 
+make[1]: Leaving directory '/home/pi/final_control/bin/CMakeFiles/CMakeTmp'
+
+

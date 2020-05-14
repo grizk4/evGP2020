@@ -1,0 +1,296 @@
+#define Phoenix_No_WPI // remove WPI dependencies
+#include <string>
+#include <iostream>
+#include <chrono>
+#include <thread>
+#include <cstdio>
+#include <cstdlib>
+#include <unistd.h>
+#include <cstring>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h> 
+#include <wiringPi.h>
+#include <softPwm.h>
+#include "ctre/Phoenix.h"
+#include "ctre/phoenix/platform/Platform.h"
+#include "ctre/phoenix/unmanaged/Unmanaged.h"
+
+using namespace ctre::phoenix;
+using namespace ctre::phoenix::platform;
+using namespace ctre::phoenix::motorcontrol;
+using namespace ctre::phoenix::motorcontrol::can;
+
+int kSlotIdx = 0;
+int kPIDLoopIdx = 0;
+int kTimeoutMs = 30;
+
+std::string sb;
+double targetPositionRotations;
+int loops = 0;
+
+void error(const char *msg)
+{
+    perror(msg);
+    exit(0);
+}
+
+/** simple wrapper for code cleanup */
+void sleepApp(int ms)
+{
+	std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+}
+
+int main(int argc, char *argv[])
+{
+    int sockfd_pi, portno_pi, n_pi;
+    struct sockaddr_in serv_addr_pi;
+    struct hostent *server_pi;
+    
+    char buffer_pi[256];
+    const char *ip_address_pi = "10.191.82.35";
+    portno_pi = 5012;
+    sockfd_pi = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd_pi < 0) 
+        error("ERROR opening socket");
+    server_pi = gethostbyname(ip_address_pi);
+    if (server_pi == NULL) {
+        fprintf(stderr,"ERROR, no such host\n");
+        exit(0);
+    }
+    bzero((char *) &serv_addr_pi, sizeof(serv_addr_pi));
+    serv_addr_pi.sin_family = AF_INET;
+    bcopy((char *)server_pi->h_addr, 
+         (char *)&serv_addr_pi.sin_addr.s_addr,
+         server_pi->h_length);
+    serv_addr_pi.sin_port = htons(portno_pi);
+    if (connect(sockfd_pi,(struct sockaddr *) &serv_addr_pi,sizeof(serv_addr_pi)) < 0) 
+        error("ERROR connecting");
+	
+	
+    int sockfd_jet, portno_jet, n_jet;
+    struct sockaddr_in serv_addr_jet;
+    struct hostent *server_jet;
+    
+    char buffer_jet[256];
+    const char *ip_address_jet = "10.1.1.2";
+    portno_jet = 6010;
+    sockfd_jet = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd_jet < 0) 
+        error("ERROR opening socket");
+    server_jet = gethostbyname(ip_address_jet);
+    if (server_jet == NULL) {
+        fprintf(stderr,"ERROR, no such host\n");
+        exit(0);
+    }
+    bzero((char *) &serv_addr_jet, sizeof(serv_addr_jet));
+    serv_addr_jet.sin_family = AF_INET;
+    bcopy((char *)server_jet->h_addr, 
+         (char *)&serv_addr_jet.sin_addr.s_addr,
+         server_jet->h_length);
+    serv_addr_jet.sin_port = htons(portno_jet);
+    if (connect(sockfd_jet,(struct sockaddr *) &serv_addr_jet,sizeof(serv_addr_jet)) < 0) 
+        error("ERROR connecting");
+	
+    wiringPiSetup();
+    pinMode(3, OUTPUT); // Kill switch
+    digitalWrite(3, HIGH);
+    delay(1000);
+    pinMode(2, OUTPUT); // Throttle
+    softPwmCreate(2, 0, 100);
+    pinMode(4, OUTPUT); // Reverse
+    digitalWrite(4, LOW);
+    
+    std::string interface;
+    interface = "can0";
+    ctre::phoenix::platform::can::SetCANInterface(interface.c_str());
+
+    TalonSRX talon(0);
+    
+    //talon.ConfigFactoryDefault();
+    int absolutePosition = talon.GetSelectedSensorPosition(0) & 0xFFF;
+    std::cout << absolutePosition << std::endl;
+    //int absolutePosition = 0;
+    talon.SetSelectedSensorPosition(absolutePosition, kPIDLoopIdx,
+          kTimeoutMs);
+    talon.ConfigSelectedFeedbackSensor(
+          FeedbackDevice::CTRE_MagEncoder_Relative, kPIDLoopIdx,
+          kTimeoutMs);
+    talon.SetSensorPhase(true);
+    talon.ConfigNominalOutputForward(0, kTimeoutMs);
+    talon.ConfigNominalOutputReverse(0, kTimeoutMs);
+    talon.ConfigPeakOutputForward(0.8, kTimeoutMs);
+    talon.ConfigPeakOutputReverse(-0.8, kTimeoutMs);
+    talon.Config_kF(kPIDLoopIdx, 0.0, kTimeoutMs);
+    talon.Config_kP(kPIDLoopIdx, 1.0, kTimeoutMs);
+    talon.Config_kI(kPIDLoopIdx, 0.0, kTimeoutMs);
+    talon.Config_kD(kPIDLoopIdx, 0.0, kTimeoutMs);
+    
+    
+    int buttonCircle = 0;
+    int buttonX = 0;
+    int buttonTriangle = 0;
+    
+    std::cout << "Press       X      for Remote Control Mode" << std::endl;
+    std::cout << "Press   Triangle   for Autonomous Mode" << std::endl;
+    std::cout << "Press    Circle    to exit" << std::endl << std::endl;
+    int count = 0;
+    while (!buttonCircle) {
+	
+	std::cout << "Remote Control Mode" << std::endl << std::endl;
+	
+	while ((!buttonCircle) && (!buttonTriangle)) {
+	    bzero(buffer_pi, 10);
+	    n_pi = read(sockfd_pi, buffer_pi, 10);
+	    if (n_pi < 0) {
+		error("ERROR reading from socket");
+		    buttonCircle = 1;
+		    break;
+		}
+	    
+	    n_jet = write(sockfd_jet, buffer_pi, 10);
+	    if (n_jet < 0) {
+		error("ERROR reading from socket");
+		buttonCircle = 1;
+		break;
+	    }
+		
+	    int steer_int = (int)buffer_pi[0] + 256*((int)buffer_pi[1]);
+	    int throttle_int = (int)buffer_pi[2] + 256*((int)buffer_pi[3]);
+	    int reverse_int = (int)buffer_pi[4] + 256*((int)buffer_pi[5]);
+	    buttonX = (int)buffer_pi[6];
+	    buttonCircle = (int)buffer_pi[7];
+	    buttonTriangle = (int)buffer_pi[8];
+	    int buttonSquare = (int)buffer_pi[9];
+	    /*int button4 = (int)buffer_pi[16];
+	    int button5 = (int)buffer_pi[17];
+	    int button6 = (int)buffer_pi[18];
+	    int button7 = (int)buffer_pi[19];
+	    int button8 = (int)buffer_pi[20];
+	    int button9 = (int)buffer_pi[21];
+	    int button10 = (int)buffer_pi[22];
+	    int button11 = (int)buffer_pi[23];
+	    int button12 = (int)buffer_pi[24];*/
+	       
+	    
+	    double steer = (double)((steer_int / 32768.0) - 1);
+	    double throttle = (double) throttle_int / 65535.0;
+	    double reverse = (double) reverse_int / 65535.0;
+	    double steering_duty = 15 - 5*steer;
+	    double throttle_duty = 100*throttle;
+	    if (throttle_int == 0) {
+		throttle_duty = 100*reverse;
+	    }
+	    if (buttonSquare) {
+		throttle_duty = 50;
+	    }
+	    int in_reverse = (buttonSquare || (!throttle_int && reverse_int));
+	    //printf("steering: %f, throttle: %f\n", steering_duty, -2.0*(in_reverse - 0.5)*throttle_duty);
+	    //printf("B0: %d, B1: %d, B2: %d, B3: %d, B4: %d, B5: %d, B6: %d, B7: %d, B8: %d, B9: %d, B10: %d, B11: %d, B12: %d\n", button0, button1, button2, button3, button4, button5, button6, button7, button8, button9, button10, button11, button12);
+	
+	    double motorOutput = talon.GetMotorOutputPercent();
+	    sb.append("\tout:");
+	    sb.append(std::to_string(motorOutput));
+	    sb.append("\tpos:");
+	    //std::string position = std::to_string(talon.GetSelectedSensorPosition(kPIDLoopIdx));
+
+	    // EDIT THIS
+	    targetPositionRotations = steer * 0.5 * 4096;
+	    // EDIT THIS
+	    
+            //if (!count) {	
+	       talon.Set(ControlMode::Position, targetPositionRotations);
+	       //}
+	    sb.append("\terrNative:");
+	    sb.append(std::to_string(talon.GetClosedLoopError(kPIDLoopIdx)));
+	    sb.append("\ttrg:");
+	    sb.append(std::to_string(targetPositionRotations));
+	    //std::cout << position << std::endl;
+	    
+	    softPwmWrite(2, throttle_duty);
+	    if (in_reverse) {
+		digitalWrite(4, HIGH); // Activate reverse
+	    }
+            /*if (++count >= 10) {
+	      count = 0;
+	      }*/
+
+	    
+	    if (++loops >= 10) {
+		loops = 0;
+		printf("%s\n", sb.c_str());
+	    }
+	    sb.clear();
+	    
+	}
+	
+	if (!buttonCircle)
+	    std::cout << "Autonomous Mode" << std::endl << std::endl;
+	
+	while ((!buttonCircle) && (!buttonX)) {
+	    talon.ConfigFactoryDefault();
+	    
+	    bzero(buffer_pi, 10);
+	    n_pi = read(sockfd_pi, buffer_pi, 10);
+	    //std::cout << "Read from pi" << std::endl;
+	    if (n_pi < 0) {
+		error("ERROR reading from socket");
+		buttonCircle = 1;
+		break;
+	    }
+	    
+	    buttonX = (int)buffer_pi[6];
+	    buttonCircle = (int)buffer_pi[7];
+	    buttonTriangle = (int)buffer_pi[8];
+	    
+	    
+	    bzero(buffer_jet, 3);
+	    buffer_jet[0] = (char)buttonX;
+	    buffer_jet[1] = (char)buttonCircle;
+	    buffer_jet[2] = (char)buttonTriangle;
+	    
+	    n_jet = write(sockfd_jet, buffer_jet, 3);
+	    //std::cout << "Write to Jetson" << std::endl;
+	    if (n_jet < 0) {
+		error("ERROR reading from socket");
+		buttonCircle = 1;
+		break;
+	    }
+	    
+	    bzero(buffer_jet, 7);
+	    n_jet = read(sockfd_jet, buffer_jet, 7);
+	    //std::cout << "Read from Jetson" << std::endl;
+	    if (n_jet < 0) {
+		error("ERROR reading from socket");
+		buttonCircle = 1;
+		break;
+	    }
+	    
+	    int steer_int = (int)buffer_jet[0] + 256*((int)buffer_jet[1]);
+	    int throttle_int = (int)buffer_jet[2] + 256*((int)buffer_jet[3]);
+	    int reverse_int = (int)buffer_jet[4] + 256*((int)buffer_jet[5]);
+	    int buttonSquare = (int)buffer_jet[6];
+	    
+	    double steer = (double)((steer_int / 32768.0) - 1);
+	    double throttle = (double) throttle_int / 65535.0;
+	    double reverse = (double) reverse_int / 65535.0;
+            double steering_duty = 15 - 5*steer;
+	    double throttle_duty = 100*throttle;
+	    if (throttle_int == 0) {
+		throttle_duty = 100*reverse;
+	    }
+	    if (buttonSquare) {
+		throttle_duty = 50;
+	    }
+	    int in_reverse = (buttonSquare || (!throttle_int && reverse_int));
+	    //printf("steering: %f, throttle: %f\n", steering_duty, -2.0*(in_reverse - 0.5)*throttle_duty);
+
+	}
+    }
+    
+    digitalWrite(3, LOW);
+    close(sockfd_pi);
+    printf("Socket closed\n");
+    return 0;
+}
