@@ -1,0 +1,22 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/pi/Phoenix-Linux-SocketCAN-Example/example.cpp
+string
+-
+iostream
+-
+chrono
+-
+thread
+-
+SDL2/SDL.h
+-
+unistd.h
+-
+

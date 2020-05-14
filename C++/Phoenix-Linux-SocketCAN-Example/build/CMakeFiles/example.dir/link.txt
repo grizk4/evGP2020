@@ -1,0 +1,1 @@
+/usr/bin/c++    -rdynamic CMakeFiles/example.dir/example.cpp.o  -o ../bin/example ../lib/raspberry/libCTRE_Phoenix.a ../lib/raspberry/libCTRE_PhoenixCCI.a ../lib/raspberry/libCTRE_PhoenixPlatformLinuxSocketCan.a ../lib/raspberry/libCTRE_PhoenixCanutils.a -lSDL2 -pthread 
